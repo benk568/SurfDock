@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import sys
 import numpy as np
 import shutil
@@ -231,60 +232,56 @@ if __name__ == "__main__":
     # arguments
     from argparse import ArgumentParser, Namespace, FileType
     parser = ArgumentParser()
-    parser.add_argument(
-        '--data_dir', type=str, default='~/SurfDock/data/test_samples', help=''
-    )
-    parser.add_argument(
-        '--out_dir',
-        type=str,
-        default='~/SurfDock/data/test_samples_8A_surface',
-        help='',
-    )
-    parser.add_argument('--pools', type=int, default=1, help='')
+    parser.add_argument("--data_dir", required=True, type=Path,  help="")
+    parser.add_argument("--out_dir", required=True, type=Path, help="")
+    parser.add_argument("--pools", type=int, default=1, help="")
     parser.add_argument(
         "--pocket_asl",
         type=str,
         default="",
-        help="ASL string specifying the pocket if there's no ligand available to define it.",
+        help="ASL string specifying the pocket if there's no ligand to define it.",
     )
     args = parser.parse_args()
-    os.makedirs(args.out_dir,exist_ok=True)
+    args.out_dir.mkdir(exist_ok=True)
 
-    sys.path.append(args.out_dir)
+    # sys.path.append(args.out_dir)
     from tqdm import tqdm
     args_list = []
-    for protein in tqdm(os.listdir(args.data_dir)):
+    # Loop through all child directories. Each one should be named after the protein
+    #  inside, and should contain at minimum a protein PDB file (if pocket_asl is
+    #  specified), or a protein PDB file and a ligand SDF file
+    for protein_dir in tqdm(list(args.data_dir.iterdir())):
+        if not protein_dir.isdir():
+            continue
 
-            target_filename = os.path.join(
-                args.data_dir, protein, f'{protein}_protein_processed.pdb'
+        target_name = protein_dir.name
+        prot_path = protein_dir / f"{target_name}.pdb"
+        lig_path = protein_dir / f"{target_name}_ligand.sdf"
+        if not lig_path.exists():
+            lig_path = protein_dir / f"{target_name}_ligand.mol2"
+        if not lig_path.exists():
+            print(
+                f"No ligand found for {target_name}, using passed pocket_asl.",
+                flush=True,
             )
-            ligand_filename = os.path.join(
-                args.data_dir, protein, f'{protein}_ligand.sdf'
-            )
-            if not os.path.exists(ligand_filename):
-                ligand_filename = os.path.join(
-                    args.data_dir, protein, f'{protein}_ligand.mol2'
-                )
-            if not os.path.exists(ligand_filename):
-                ligand_filename = None
-            args_list.append((target_filename, ligand_filename, args.pocket_asl))
-    print(f'number {len(args_list)} need to processed')
+            lig_path = None
+        args_list.append((prot_path, lig_path, args.pocket_asl))
+    print(f"{len(args_list)} target structure found.", flush=True)
     results = Parallel(
-        n_jobs = 30,backend = 'multiprocessing'
+        n_jobs = 30,backend = "multiprocessing"
     )(
         delayed(compute_inp_surface)(
-            target_filename,
-            ligand_filename,
+            prot_path,
+            lig_path,
             args.out_dir,
             dist_threshold=8,
             pocket_asl=pocket_asl,
         )
-        for (target_filename, ligand_filename, pocket_asl) in tqdm(args_list)
+        for (prot_path, lig_path, pocket_asl) in tqdm(args_list)
     )
-    # print(results)
-    # Find all files in args.out_dir that end with _temp
     
-    files = glob.glob(os.path.join(args.out_dir, '*_temp*')) + glob.glob(os.path.join(args.out_dir, '*msms*'))
-    # Delete all found files
-    for f in files:
-        os.remove(f)
+    # Delete all temp files generated in the process
+    for f in args.out_dir.glob("*_temp*"):
+        f.unlink()
+    for f in args.out_dir.glob("*msms*"):
+        f.unlink()
