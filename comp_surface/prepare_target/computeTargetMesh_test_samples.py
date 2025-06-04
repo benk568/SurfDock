@@ -24,7 +24,9 @@ from save_ply import save_ply
 from mol2graph import *
 
 
-def compute_inp_surface(target_filename, ligand_filename,out_dir = None, dist_threshold=10):
+def compute_inp_surface(
+    target_filename, ligand_filename, out_dir=None, dist_threshold=10, pocket_asl=""
+):
     try:
 
         sufix = '_'+str(dist_threshold)+'A.pdb'
@@ -229,9 +231,22 @@ if __name__ == "__main__":
     # arguments
     from argparse import ArgumentParser, Namespace, FileType
     parser = ArgumentParser()
-    parser.add_argument('--data_dir', type=str, default='~/SurfDock/data/test_samples', help='')
-    parser.add_argument('--out_dir', type=str, default='~/SurfDock/data/test_samples_8A_surface', help='')
+    parser.add_argument(
+        '--data_dir', type=str, default='~/SurfDock/data/test_samples', help=''
+    )
+    parser.add_argument(
+        '--out_dir',
+        type=str,
+        default='~/SurfDock/data/test_samples_8A_surface',
+        help='',
+    )
     parser.add_argument('--pools', type=int, default=1, help='')
+    parser.add_argument(
+        "--pocket_asl",
+        type=str,
+        default="",
+        help="ASL string specifying the pocket if there's no ligand available to define it.",
+    )
     args = parser.parse_args()
     os.makedirs(args.out_dir,exist_ok=True)
 
@@ -240,13 +255,32 @@ if __name__ == "__main__":
     args_list = []
     for protein in tqdm(os.listdir(args.data_dir)):
 
-            target_filename = os.path.join(args.data_dir,protein,f'{protein}_protein_processed.pdb')
-            ligand_filename = os.path.join(args.data_dir,protein,f'{protein}_ligand.sdf')
+            target_filename = os.path.join(
+                args.data_dir, protein, f'{protein}_protein_processed.pdb'
+            )
+            ligand_filename = os.path.join(
+                args.data_dir, protein, f'{protein}_ligand.sdf'
+            )
             if not os.path.exists(ligand_filename):
-                ligand_filename = os.path.join(args.data_dir,protein,f'{protein}_ligand.mol2')
-            args_list.append((target_filename,ligand_filename))
+                ligand_filename = os.path.join(
+                    args.data_dir, protein, f'{protein}_ligand.mol2'
+                )
+            if not os.path.exists(ligand_filename):
+                ligand_filename = None
+            args_list.append((target_filename, ligand_filename, args.pocket_asl))
     print(f'number {len(args_list)} need to processed')
-    results = Parallel(n_jobs = 30,backend = 'multiprocessing')(delayed(compute_inp_surface)(target_filename, ligand_filename,args.out_dir, dist_threshold=8) for (target_filename, ligand_filename) in tqdm(args_list))
+    results = Parallel(
+        n_jobs = 30,backend = 'multiprocessing'
+    )(
+        delayed(compute_inp_surface)(
+            target_filename,
+            ligand_filename,
+            args.out_dir,
+            dist_threshold=8,
+            pocket_asl=pocket_asl,
+        )
+        for (target_filename, ligand_filename, pocket_asl) in tqdm(args_list)
+    )
     # print(results)
     # Find all files in args.out_dir that end with _temp
     
