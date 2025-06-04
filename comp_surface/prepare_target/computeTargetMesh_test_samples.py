@@ -25,6 +25,25 @@ from save_ply import save_ply
 from mol2graph import *
 
 
+def asl_to_pocket_selection(asl: str) -> str:
+    """
+    Take in a string like "((chain.name A ) AND (res.num 300,301)) OR ((chain.name B ) AND (res.num 351))"
+    and return a str like "A_300,A_301,B_351"
+    Borrowed from chai1/input_parser.py
+
+    :param asl: ASL string
+    :return: list of tuples
+    """
+    chain_asl_pattern = r'\(\(chain\.name (\w)\s*\) AND \(res\.num (\d+(?:,\d+)*\s*)\)\)'
+    full_asl_pattern = f'{chain_asl_pattern}(?: OR {chain_asl_pattern})*'
+    pocket_selection = []
+    for match in re.finditer(full_asl_pattern, asl):
+        chain, res_nums, _, _ = match.groups()
+        for res_num in res_nums.split(','):
+            pocket_selection.append(f"{chain}_{res_num}")
+    return ",".join(pocket_selection)
+
+
 def compute_inp_surface(
     target_filename, ligand_filename, out_dir=None, dist_threshold=10, pocket_asl=""
 ):
