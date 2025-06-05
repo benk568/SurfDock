@@ -53,7 +53,7 @@ def asl_to_pocket_selection(asl: str) -> str:
     if len(pocket_selection) == 0:
         raise ValueError("Invalid ASL selection, need to specify at least one chain.")
 
-    # Unpack dict into tuple of (chain_id, res_id_list)
+    # Unpack dict into tuples of (chain_id, res_id_list) and return the first (only) one
     return tuple(*zip(pocket_selection.items()))[0]
 
 
@@ -79,10 +79,22 @@ def compute_inp_surface(
         structures = parser.get_structure("target", target_filename)
         structure = structures[0] # 'structures' may contain several proteins in this case only one.
 
-        atoms  = Bio.PDB.Selection.unfold_entities(structure, 'A')
+        atoms  = Bio.PDB.Selection.unfold_entities(structure, "A")
         ns = Bio.PDB.NeighborSearch(atoms)
 
-        if ligand_filename is not None:
+        if ligand_filename is None:
+            # Convert passed ASL selection into a chain ID and residues
+            asl_chain, asl_resids = asl_to_pocket_selection(pocket_asl)
+
+            atom_coords = []
+            for a in atoms:
+                # Returns a lot of information we don't really need
+                _, _, atom_chain, (_, resid, _), *_ = a.get_full_id()
+
+                if (atom_chain == asl_chain) and (resid in asl_resids):
+                    atom_coords += [a.coord]
+
+        else:
             # Load ligand
             if ligand_filename.suffix == ".sdf":
                 mol = Chem.SDMolSupplier(ligand_filename, sanitize=False)[0]
@@ -93,10 +105,10 @@ def compute_inp_surface(
 
             # Convert loaded mol to graph
             g = mol_to_nx(mol)
-            atomCoords = np.array([g.nodes[i]["pos"].tolist() for i in g.nodes])
+            atom_coords = np.array([g.nodes[i]["pos"].tolist() for i in g.nodes])
 
         close_residues= []
-        for a in atomCoords:
+        for a in atom_coords:
             close_residues.extend(ns.search(a, dist_threshold, level='R'))
         close_residues = Bio.PDB.Selection.uniqueify(close_residues)
 
@@ -119,20 +131,20 @@ def compute_inp_surface(
         structure = structures[0] # 'structures' may contain several proteins in this case only one.
         atoms  = Bio.PDB.Selection.unfold_entities(structure, 'A')
 
-        #dist = [distance.euclidean(atomCoords.mean(axis=0), a.get_coord()) for a in atoms]
+        #dist = [distance.euclidean(atom_coords.mean(axis=0), a.get_coord()) for a in atoms]
         #atom_idx = np.argmin(dist)
-        #dist = [[distance.euclidean(ac, a.get_coord()) for ac in atomCoords] for a in atoms]
+        #dist = [[distance.euclidean(ac, a.get_coord()) for ac in atom_coords] for a in atoms]
         #atom_idx = np.argsort(np.min(dist, axis=1))[0]
 
         # Compute MSMS of surface w/hydrogens,
         try:
-            dist = [distance.euclidean(atomCoords.mean(axis=0), a.get_coord()) for a in atoms]
+            dist = [distance.euclidean(atom_coords.mean(axis=0), a.get_coord()) for a in atoms]
             atom_idx = np.argmin(dist)
             vertices1, faces1, normals1, names1, areas1 = computeMSMS(out_filename+sufix,\
                                                                     protonate=True, one_cavity=atom_idx)
 
             # Find the distance between every vertex in binding site surface and each atom in the ligand.
-            kdt = KDTree(atomCoords)
+            kdt = KDTree(atom_coords)
             d, r = kdt.query(vertices1)
             assert(len(d) == len(vertices1))
             iface_v = np.where(d <= dist_threshold-5)[0]
@@ -158,13 +170,13 @@ def compute_inp_surface(
 
         except:
             try:
-                dist = [[distance.euclidean(ac, a.get_coord()) for ac in atomCoords] for a in atoms]
+                dist = [[distance.euclidean(ac, a.get_coord()) for ac in atom_coords] for a in atoms]
                 atom_idx = np.argsort(np.min(dist, axis=1))[0]
                 vertices1, faces1, normals1, names1, areas1 = computeMSMS(out_filename+sufix,\
                                                                         protonate=True, one_cavity=atom_idx)
 
                 # Find the distance between every vertex in binding site surface and each atom in the ligand.
-                kdt = KDTree(atomCoords)
+                kdt = KDTree(atom_coords)
                 d, r = kdt.query(vertices1)
                 assert(len(d) == len(vertices1))
                 iface_v = np.where(d <= dist_threshold-5)[0]
@@ -193,7 +205,7 @@ def compute_inp_surface(
                                                                         protonate=True, one_cavity=None)
 
                 # Find the distance between every vertex in binding site surface and each atom in the ligand.
-                kdt = KDTree(atomCoords)
+                kdt = KDTree(atom_coords)
                 d, r = kdt.query(vertices1)
                 assert(len(d) == len(vertices1))
                 iface_v = np.where(d <= dist_threshold-5)[0]
@@ -296,6 +308,10 @@ if __name__ == "__main__":
                 f"No ligand found for {target_name}, using pocket_asl.", flush=True
             )
             lig_path = None
+            if args.pocket_asl == "":
+                raise ValueError(
+                    "Need to specify --pocket_asl if no ligand is present."
+                )
         args_list.append((prot_path, lig_path, args.pocket_asl))
     print(f"{len(args_list)} target structure found.", flush=True)
     results = Parallel(
