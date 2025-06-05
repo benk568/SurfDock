@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import re
 import sys
 import numpy as np
 import shutil
@@ -29,19 +30,31 @@ def asl_to_pocket_selection(asl: str) -> str:
     """
     Take in a string like "((chain.name A ) AND (res.num 300,301)) OR ((chain.name B ) AND (res.num 351))"
     and return a str like "A_300,A_301,B_351"
-    Borrowed from chai1/input_parser.py
+    Adapted from chai1/input_parser.py
 
     :param asl: ASL string
     :return: list of tuples
     """
-    chain_asl_pattern = r'\(\(chain\.name (\w)\s*\) AND \(res\.num (\d+(?:,\d+)*\s*)\)\)'
-    full_asl_pattern = f'{chain_asl_pattern}(?: OR {chain_asl_pattern})*'
-    pocket_selection = []
+    chain_asl_pattern = r"\(\(chain\.name (\w)\s*\) AND \(res\.num (\d+(?:,\d+)*\s*)\)\)"
+    full_asl_pattern = f"{chain_asl_pattern}(?: OR {chain_asl_pattern})*"
+    # Dict mapping chain to list of residues
+    pocket_selection = {}
     for match in re.finditer(full_asl_pattern, asl):
         chain, res_nums, _, _ = match.groups()
-        for res_num in res_nums.split(','):
-            pocket_selection.append(f"{chain}_{res_num}")
-    return ",".join(pocket_selection)
+        for res_num in res_nums.split(","):
+            try:
+                pocket_selection[chain] += [res_num]
+            except KeyError:
+                pocket_selection[chain] = [res_num]
+
+    # Can only have one binding pocket
+    if len(pocket_selection) > 1:
+        raise ValueError("Invalid ASL selection, multiple chains is not supported.")
+    if len(pocket_selection) == 0:
+        raise ValueError("Invalid ASL selection, need to specify at least one chain.")
+
+    # Unpack dict into tuple of (chain_id, res_id_list)
+    return tuple(*zip(pocket_selection.items()))[0]
 
 
 def compute_inp_surface(
@@ -60,21 +73,27 @@ def compute_inp_surface(
             print(f"{ply_out_path} already computed", flush=True)
             return 0
 
-        if ligand_filename.suffix == ".sdf":
-            mol = Chem.SDMolSupplier(ligand_filename, sanitize=False)[0]
-        elif ligand_filename.suffix == ".pdb":
-            mol = Chem.MolFromPDBFile(ligand_filename, sanitize=False)
-        g = mol_to_nx(mol)
-        atomCoords = np.array([g.nodes[i]['pos'].tolist() for i in g.nodes])
-
         # Read protein and select aminino acids in the binding pocket
         parser = Bio.PDB.PDBParser(QUIET=True) # QUIET=True avoids comments on errors in the pdb.
 
-        structures = parser.get_structure('target', target_filename)
+        structures = parser.get_structure("target", target_filename)
         structure = structures[0] # 'structures' may contain several proteins in this case only one.
 
         atoms  = Bio.PDB.Selection.unfold_entities(structure, 'A')
         ns = Bio.PDB.NeighborSearch(atoms)
+
+        if ligand_filename is not None:
+            # Load ligand
+            if ligand_filename.suffix == ".sdf":
+                mol = Chem.SDMolSupplier(ligand_filename, sanitize=False)[0]
+            elif ligand_filename.suffix == ".pdb":
+                mol = Chem.MolFromPDBFile(ligand_filename, sanitize=False)
+            else:
+                raise ValueError(f"Unknown ligand format {ligand_filename.suffix}")
+
+            # Convert loaded mol to graph
+            g = mol_to_nx(mol)
+            atomCoords = np.array([g.nodes[i]["pos"].tolist() for i in g.nodes])
 
         close_residues= []
         for a in atomCoords:
