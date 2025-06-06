@@ -93,6 +93,7 @@ def compute_inp_surface(
 
                 if (atom_chain == asl_chain) and (resid in asl_resids):
                     atom_coords += [a.coord]
+            atom_coords = np.asarray(atom_coords)
 
         else:
             # Load ligand
@@ -109,27 +110,31 @@ def compute_inp_surface(
 
         close_residues= []
         for a in atom_coords:
-            close_residues.extend(ns.search(a, dist_threshold, level='R'))
+            close_residues.extend(ns.search(a, dist_threshold, level="R"))
         close_residues = Bio.PDB.Selection.uniqueify(close_residues)
 
         class SelectNeighbors(Select):
             def accept_residue(self, residue):
                 if residue in close_residues:
-                    if all(a in [i.get_name() for i in residue.get_unpacked_list()] for a in ['N', 'CA', 'C', 'O']) or residue.resname=='HOH':
-                        return True
-                    else:
-                        return False
+                    # Make sure the residue has all backbone atoms (I think?)
+                    return all(
+                        [
+                            a in [i.get_name() for i in residue.get_unpacked_list()]
+                            for a in ["N", "CA", "C", "O"]
+                        ]
+                    ) or residue.resname=="HOH"
                 else:
                     return False
 
+        pdb_out_path = ply_out_path.with_suffix(".pdb")
         pdbio = PDBIO()
         pdbio.set_structure(structure)
-        pdbio.save(out_filename+sufix, SelectNeighbors())
+        pdbio.save(pdb_out_path, SelectNeighbors())
 
-        # Identify closes atom to the ligand
-        structures = parser.get_structure('target', out_filename+sufix)
+        # Identify closest atom to the ligand
+        structures = parser.get_structure("target", pdb_out_path)
         structure = structures[0] # 'structures' may contain several proteins in this case only one.
-        atoms  = Bio.PDB.Selection.unfold_entities(structure, 'A')
+        atoms  = Bio.PDB.Selection.unfold_entities(structure, "A")
 
         #dist = [distance.euclidean(atom_coords.mean(axis=0), a.get_coord()) for a in atoms]
         #atom_idx = np.argmin(dist)
@@ -138,10 +143,14 @@ def compute_inp_surface(
 
         # Compute MSMS of surface w/hydrogens,
         try:
-            dist = [distance.euclidean(atom_coords.mean(axis=0), a.get_coord()) for a in atoms]
+            dist = [
+                distance.euclidean(atom_coords.mean(axis=0), a.get_coord())
+                for a in atoms
+            ]
             atom_idx = np.argmin(dist)
-            vertices1, faces1, normals1, names1, areas1 = computeMSMS(out_filename+sufix,\
-                                                                    protonate=True, one_cavity=atom_idx)
+            vertices1, faces1, normals1, names1, areas1 = computeMSMS(
+                pdb_out_path, protonate=True, one_cavity=atom_idx
+            )
 
             # Find the distance between every vertex in binding site surface and each atom in the ligand.
             kdt = KDTree(atom_coords)
@@ -151,11 +160,11 @@ def compute_inp_surface(
             faces_to_keep = [idx for idx, face in enumerate(faces1) if all(v in iface_v  for v in face)]
 
             # Compute "charged" vertices
-            if masif_opts['use_hbond']:
-                vertex_hbond = computeCharges(input_filename, vertices1, names1)
+            if masif_opts["use_hbond"]:
+                vertex_hbond = computeCharges(target_filename.stem, vertices1, names1)
 
             # For each surface residue, assign the hydrophobicity of its amino acid.
-            if masif_opts['use_hphob']:
+            if masif_opts["use_hphob"]:
                 vertex_hphobicity = computeHydrophobicity(names1)
 
             # If protonate = false, recompute MSMS of surface, but without hydrogens (set radius of hydrogens to 0).
@@ -166,14 +175,18 @@ def compute_inp_surface(
             mesh = pymesh.form_mesh(vertices2, faces2)
             mesh = pymesh.submesh(mesh, faces_to_keep, 0)
             with io.capture_output() as captured:
-                regular_mesh = fix_mesh(mesh, masif_opts['mesh_res'])
+                regular_mesh = fix_mesh(mesh, masif_opts["mesh_res"])
 
         except:
             try:
-                dist = [[distance.euclidean(ac, a.get_coord()) for ac in atom_coords] for a in atoms]
+                dist = [
+                    [distance.euclidean(ac, a.get_coord()) for ac in atom_coords]
+                    for a in atoms
+                ]
                 atom_idx = np.argsort(np.min(dist, axis=1))[0]
-                vertices1, faces1, normals1, names1, areas1 = computeMSMS(out_filename+sufix,\
-                                                                        protonate=True, one_cavity=atom_idx)
+                vertices1, faces1, normals1, names1, areas1 = computeMSMS(
+                    pdb_out_path, protonate=True, one_cavity=atom_idx
+                )
 
                 # Find the distance between every vertex in binding site surface and each atom in the ligand.
                 kdt = KDTree(atom_coords)
@@ -183,11 +196,11 @@ def compute_inp_surface(
                 faces_to_keep = [idx for idx, face in enumerate(faces1) if all(v in iface_v  for v in face)]
 
                 # Compute "charged" vertices
-                if masif_opts['use_hbond']:
-                    vertex_hbond = computeCharges(input_filename, vertices1, names1)
+                if masif_opts["use_hbond"]:
+                    vertex_hbond = computeCharges(target_filename.stem, vertices1, names1)
 
                 # For each surface residue, assign the hydrophobicity of its amino acid.
-                if masif_opts['use_hphob']:
+                if masif_opts["use_hphob"]:
                     vertex_hphobicity = computeHydrophobicity(names1)
 
                 # If protonate = false, recompute MSMS of surface, but without hydrogens (set radius of hydrogens to 0).
@@ -198,11 +211,12 @@ def compute_inp_surface(
                 mesh = pymesh.form_mesh(vertices2, faces2)
                 mesh = pymesh.submesh(mesh, faces_to_keep, 0)
                 with io.capture_output() as captured:
-                    regular_mesh = fix_mesh(mesh, masif_opts['mesh_res'])
+                    regular_mesh = fix_mesh(mesh, masif_opts["mesh_res"])
 
             except:
-                vertices1, faces1, normals1, names1, areas1 = computeMSMS(out_filename+sufix,\
-                                                                        protonate=True, one_cavity=None)
+                vertices1, faces1, normals1, names1, areas1 = computeMSMS(
+                    pdb_out_path, protonate=True, one_cavity=None
+                )
 
                 # Find the distance between every vertex in binding site surface and each atom in the ligand.
                 kdt = KDTree(atom_coords)
@@ -212,11 +226,11 @@ def compute_inp_surface(
                 faces_to_keep = [idx for idx, face in enumerate(faces1) if all(v in iface_v  for v in face)]
 
                 # Compute "charged" vertices
-                if masif_opts['use_hbond']:
-                    vertex_hbond = computeCharges(input_filename, vertices1, names1)
+                if masif_opts["use_hbond"]:
+                    vertex_hbond = computeCharges(target_filename.stem, vertices1, names1)
 
                 # For each surface residue, assign the hydrophobicity of its amino acid.
-                if masif_opts['use_hphob']:
+                if masif_opts["use_hphob"]:
                     vertex_hphobicity = computeHydrophobicity(names1)
 
                 # If protonate = false, recompute MSMS of surface, but without hydrogens (set radius of hydrogens to 0).
@@ -227,23 +241,27 @@ def compute_inp_surface(
                 mesh = pymesh.form_mesh(vertices2, faces2)
                 mesh = pymesh.submesh(mesh, faces_to_keep, 0)
                 with io.capture_output() as captured:
-                    regular_mesh = fix_mesh(mesh, masif_opts['mesh_res'])
+                    regular_mesh = fix_mesh(mesh, masif_opts["mesh_res"])
 
         # Compute the normals
         vertex_normal = compute_normal(regular_mesh.vertices, regular_mesh.faces)
         # Assign charges on new vertices based on charges of old vertices (nearest
         # neighbor)
 
-        if masif_opts['use_hbond']:
-            vertex_hbond = assignChargesToNewMesh(regular_mesh.vertices, vertices1,\
-                vertex_hbond, masif_opts)
+        if masif_opts["use_hbond"]:
+            vertex_hbond = assignChargesToNewMesh(
+                regular_mesh.vertices, vertices1, vertex_hbond, masif_opts
+            )
 
-        if masif_opts['use_hphob']:
-            vertex_hphobicity = assignChargesToNewMesh(regular_mesh.vertices, vertices1,\
-                vertex_hphobicity, masif_opts)
+        if masif_opts["use_hphob"]:
+            vertex_hphobicity = assignChargesToNewMesh(
+                regular_mesh.vertices, vertices1, vertex_hphobicity, masif_opts
+            )
 
-        if masif_opts['use_apbs']:
-            vertex_charges = computeAPBS(regular_mesh.vertices, out_filename+sufix, out_filename+"_temp")
+        if masif_opts["use_apbs"]:
+            vertex_charges = computeAPBS(
+                regular_mesh.vertices, pdb_out_path, f"{out_filename.stem}_temp"
+            )
 
         # Compute the principal curvature components for the shape index.
         regular_mesh.add_attribute("vertex_mean_curvature")
@@ -261,10 +279,16 @@ def compute_inp_surface(
         si = np.arctan(si)*(2/np.pi)
 
         # Convert to ply and save.
-        save_ply(out_filename+f"/{sufix.split('.')[0]}.ply", regular_mesh.vertices,\
-                regular_mesh.faces, normals=vertex_normal, charges=vertex_charges,\
-                normalize_charges=True, hbond=vertex_hbond, hphob=vertex_hphobicity,\
-                si=si)
+        save_ply(
+            ply_out_path,
+            regular_mesh.vertices, regular_mesh.faces,
+            normals=vertex_normal,
+            charges=vertex_charges,
+            normalize_charges=True,
+            hbond=vertex_hbond,
+            hphob=vertex_hphobicity,
+            si=si
+        )
 
         return 0
     except:
