@@ -4,7 +4,7 @@ channels:
   - conda-forge
 dependencies:
   - python=3.10
-  - pytorch
+  - pytorch-gpu
   - numpy
   - scipy
   - pandas
@@ -41,8 +41,9 @@ dependencies:
   - fair-esm
   - mx::reduce
   - openbabel
-  # - pip:
+  - pip:
+    - prefetch-generator
+    # This needs to be installed from their release wheel file
   #   - pymesh2@git+https://github.com/nuvolos-cloud/PyMesh
-  #   - prefetch-generator
 
 
