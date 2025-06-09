@@ -133,13 +133,13 @@ def compute_inp_surface(
         pdb_out_path = ply_out_path.with_suffix(".pdb")
         pdbio = PDBIO()
         pdbio.set_structure(structure)
-        pdbio.save(pdb_out_path, SelectNeighbors())
+        pdbio.save(pdb_out_path.open("w"), SelectNeighbors())
 
         # Identify closest atom to the ligand
-        structures = parser.get_structure("target", pdb_out_path)
-        structure = structures[0] # 'structures' may contain several proteins in this case only one.
+        structure = parser.get_structure("target", pdb_out_path)
+        # structure = structures["target"]
         atoms  = Bio.PDB.Selection.unfold_entities(structure, "A")
-        print(len(atoms), flush=True)
+        print(len(atoms), "atoms", flush=True)
 
         #dist = [distance.euclidean(atom_coords.mean(axis=0), a.get_coord()) for a in atoms]
         #atom_idx = np.argmin(dist)
