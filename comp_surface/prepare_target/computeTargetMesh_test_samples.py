@@ -49,9 +49,13 @@ def asl_to_pocket_selection(asl: str) -> str:
 
     # Can only have one binding pocket
     if len(pocket_selection) > 1:
-        raise ValueError("Invalid ASL selection, multiple chains is not supported.")
+        raise ValueError(
+            f"Invalid ASL selection '{asl}', multiple chains is not supported."
+        )
     if len(pocket_selection) == 0:
-        raise ValueError("Invalid ASL selection, need to specify at least one chain.")
+        raise ValueError(
+            f"Invalid ASL selection '{asl}', need to specify at least one chain."
+        )
 
     # Unpack dict into tuples of (chain_id, res_id_list) and return the first (only) one
     return tuple(*zip(pocket_selection.items()))[0]
@@ -69,7 +73,7 @@ def compute_inp_surface(
         # This is the file we ultimately want, can just skip everything if it already
         #  exists
         ply_out_path = out_dir / f"{target_filename.name.split('.')[0]}_{dist_threshold}A.ply"
-        if ply_out_path:
+        if ply_out_path.exists():
             print(f"{ply_out_path} already computed", flush=True)
             return 0
 
@@ -135,6 +139,7 @@ def compute_inp_surface(
         structures = parser.get_structure("target", pdb_out_path)
         structure = structures[0] # 'structures' may contain several proteins in this case only one.
         atoms  = Bio.PDB.Selection.unfold_entities(structure, "A")
+        print(len(atoms), flush=True)
 
         #dist = [distance.euclidean(atom_coords.mean(axis=0), a.get_coord()) for a in atoms]
         #atom_idx = np.argmin(dist)
@@ -290,9 +295,11 @@ def compute_inp_surface(
             si=si
         )
 
+        print(f"{target_filename.parent.name} succeeded", flush=True)
         return 0
-    except:
-        return target_filename
+    except Exception as e:
+        print(f"{target_filename.parent.name} failed", flush=True)
+        raise e
 
 
 if __name__ == "__main__":
@@ -319,11 +326,17 @@ if __name__ == "__main__":
     #  inside, and should contain at minimum a protein PDB file (if pocket_asl is
     #  specified), or a protein PDB file and a ligand SDF file
     for protein_dir in tqdm(list(args.data_dir.iterdir())):
-        if not protein_dir.isdir():
+        if not protein_dir.is_dir():
             continue
 
         target_name = protein_dir.name
         prot_path = protein_dir / f"{target_name}.pdb"
+        if not prot_path.exists():
+            print(
+                f"No protein found for {target_name}, skipping directory.", flush=True
+            )
+            continue
+
         lig_path = protein_dir / f"{target_name}_ligand.sdf"
         if not lig_path.exists():
             lig_path = protein_dir / f"{target_name}_ligand.mol2"
