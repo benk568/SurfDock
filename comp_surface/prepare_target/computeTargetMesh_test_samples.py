@@ -68,8 +68,6 @@ def compute_inp_surface(
         out_dir = out_dir / target_filename.parent.name
         out_dir.mkdir(exist_ok=True)
 
-        # sufix = '/' + os.path.splitext(target_filename)[0].split('/')[-1] + '_'+str(dist_threshold)+'A.pdb'
-
         # This is the file we ultimately want, can just skip everything if it already
         #  exists
         ply_out_path = out_dir / f"{target_filename.name.split('.')[0]}_{dist_threshold}A.ply"
@@ -139,12 +137,6 @@ def compute_inp_surface(
         structure = parser.get_structure("target", pdb_out_path)
         # structure = structures["target"]
         atoms  = Bio.PDB.Selection.unfold_entities(structure, "A")
-        print(len(atoms), "atoms", flush=True)
-
-        #dist = [distance.euclidean(atom_coords.mean(axis=0), a.get_coord()) for a in atoms]
-        #atom_idx = np.argmin(dist)
-        #dist = [[distance.euclidean(ac, a.get_coord()) for ac in atom_coords] for a in atoms]
-        #atom_idx = np.argsort(np.min(dist, axis=1))[0]
 
         # Compute MSMS of surface w/hydrogens,
         try:
