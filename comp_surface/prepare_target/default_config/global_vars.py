@@ -2,37 +2,20 @@
 # Pablo Gainza - LPDI STI EPFL 2018-2019
 # Released under an Apache License 2.0
 
-import os 
-from IPython.core.debugger import set_trace
+import os
 epsilon = 1.0e-6
 import sys
 
-os.environ['MSMS_BIN']= "~/SurfDock/comp_surface/tools/APBS-3.4.1.Linux/bin/msms"
-if 'MSMS_BIN' in os.environ:
-   msms_bin = os.environ['MSMS_BIN']
-else:
-  set_trace()
-  print("ERROR: MSMS_BIN not set. Variable should point to MSMS program.")
-  sys.exit(1)
+default_env_vars = {
+   "MSMS_BIN": "~/SurfDock/comp_surface/tools/APBS-3.4.1.Linux/bin/msms",
+   "PDB2PQR_BIN": "~/SurfDock/comp_surface/tools/pdb2pqr-linux-bin64-2.1.1/pdb2pqr",
+    "APBS_BIN": "~/SurfDock/comp_surface/tools/APBS-3.4.1.Linux/bin/apbs",
+    "MULTIVALUE_BIN": "~/SurfDock/comp_surface/tools/APBS-3.4.1.Linux/share/apbs/tools/bin/multivalue"
+}
 
-os.environ['PDB2PQR_BIN']="~/SurfDock/comp_surface/tools/pdb2pqr-linux-bin64-2.1.1/pdb2pqr"
-if 'PDB2PQR_BIN' in os.environ:
-   pdb2pqr_bin = os.environ['PDB2PQR_BIN']
-else:
-  print("ERROR: PDB2PQR_BIN not set. Variable should point to PDB2PQR_BIN program.")
-  sys.exit(1)
-os.environ['APBS_BIN']="~/SurfDock/comp_surface/tools/APBS-3.4.1.Linux/bin/apbs"
-if 'APBS_BIN' in os.environ:
-   apbs_bin = os.environ['APBS_BIN']
-else:
-  print("ERROR: APBS_BIN not set. Variable should point to APBS program.")
-  sys.exit(1)
-os.environ['MULTIVALUE_BIN']="~/SurfDock/comp_surface/tools/APBS-3.4.1.Linux/share/apbs/tools/bin/multivalue"
-if 'MULTIVALUE_BIN' in os.environ:
-   multivalue_bin = os.environ['MULTIVALUE_BIN']
-else:
-  print("ERROR: MULTIVALUE_BIN not set. Variable should point to MULTIVALUE program.")
-  sys.exit(1)
-
+msms_bin = os.environ.get("MSMS_BIN", default_env_vars["MSMS_BIN"])
+pdb2pqr_bin = os.environ.get("PDB2PQR_BIN", default_env_vars["PDB2PQR_BIN"])
+apbs_bin = os.environ.get("APBS_BIN", default_env_vars["APBS_BIN"])
+multivalue_bin = os.environ.get("MULTIVALUE_BIN", default_env_vars["MULTIVALUE_BIN"])
 class NoSolutionError(Exception):
     pass

@@ -16,29 +16,29 @@ Pablo Gainza - LPDI STI EPFL 2019
 def computeAPBS(vertices, pdb_file, tmp_file_base,clear=False):
     """
         Calls APBS, pdb2pqr, and multivalue and returns the charges per vertex
-    """    
+    """
     if not clear:
-        pdb2pqr = pdb2pqr_bin + " --ff=parse --whitespace --noopt --apbs-input %s %s"# + tempfile.mktemp() 
+        pdb2pqr = pdb2pqr_bin + " --ff=parse --whitespace --noopt --apbs-input %s %s"# + tempfile.mktemp()
         # pdb2pqr = pdb2pqr_bin + " --clean --whitespace --noopt --apbs-input %s %s"# + tempfile.mktemp() # 上一行由于确实太多办法计算表面的时候再用这个
     else:
         pdb2pqr = pdb2pqr_bin + " --clean --whitespace --noopt --apbs-input %s %s"# + tempfile.mktemp() # 上一行由于确实太多办法计算表面的时候再用这个
-    make_pqr = pdb2pqr % (pdb_file, tmp_file_base) 
+    make_pqr = pdb2pqr % (pdb_file, tmp_file_base)
     os.system(make_pqr)
     print('os.system(make_pqr)',os.system(make_pqr))
-    
+
     apbs = apbs_bin + " %s"
-    make_apbs = apbs % (tmp_file_base+".in") 
+    make_apbs = apbs % (tmp_file_base+".in")
     # os.system(make_apbs)
     print(make_apbs)
     print('os.system(make_apbs)',os.system(make_apbs))
-    
+
     vertfile = open(tmp_file_base + ".csv", "w")
     for vert in vertices:
         vertfile.write("{},{},{}\n".format(vert[0], vert[1], vert[2]))
     vertfile.close()
-    
+
     multivalue = multivalue_bin + " %s %s %s"
-    make_multivalue = multivalue % (tmp_file_base+".csv", tmp_file_base+".dx", tmp_file_base+"_out.csv") 
+    make_multivalue = multivalue % (tmp_file_base+".csv", tmp_file_base+".dx", tmp_file_base+"_out.csv")
     # print(make_multivalue)
     try:
         os.system(make_multivalue)
