@@ -166,7 +166,9 @@ def compute_inp_surface(
 
             # Compute "charged" vertices
             if masif_opts["use_hbond"]:
-                vertex_hbond = computeCharges(target_filename.stem, vertices1, names1)
+                vertex_hbond = computeCharges(
+                    str(target_filename.with_suffix("")), vertices1, names1
+                )
 
             # For each surface residue, assign the hydrophobicity of its amino acid.
             if masif_opts["use_hphob"]:
@@ -202,7 +204,9 @@ def compute_inp_surface(
 
                 # Compute "charged" vertices
                 if masif_opts["use_hbond"]:
-                    vertex_hbond = computeCharges(target_filename.stem, vertices1, names1)
+                    vertex_hbond = computeCharges(
+                        str(target_filename.with_suffix("")), vertices1, names1
+                    )
 
                 # For each surface residue, assign the hydrophobicity of its amino acid.
                 if masif_opts["use_hphob"]:
@@ -232,7 +236,9 @@ def compute_inp_surface(
 
                 # Compute "charged" vertices
                 if masif_opts["use_hbond"]:
-                    vertex_hbond = computeCharges(target_filename.stem, vertices1, names1)
+                    vertex_hbond = computeCharges(
+                        str(target_filename.with_suffix("")), vertices1, names1
+                    )
 
                 # For each surface residue, assign the hydrophobicity of its amino acid.
                 if masif_opts["use_hphob"]:
