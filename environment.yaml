@@ -44,6 +44,6 @@ dependencies:
   - pip:
     - prefetch-generator
     # This needs to be installed from their release wheel file
-  #   - pymesh2@git+https://github.com/nuvolos-cloud/PyMesh
+    - https://github.com/nuvolos-cloud/PyMesh/releases/download/v0.3.1/pymesh2-0.3.1-cp310-cp310-linux_x86_64.whl
 
 
