@@ -271,7 +271,9 @@ def compute_inp_surface(
 
         if masif_opts["use_apbs"]:
             vertex_charges = computeAPBS(
-                regular_mesh.vertices, pdb_out_path, f"{out_filename.stem}_temp"
+                regular_mesh.vertices,
+                pdb_out_path,
+                f"{pdb_out_path.with_suffix('')}_temp",
             )
 
         # Compute the principal curvature components for the shape index.
