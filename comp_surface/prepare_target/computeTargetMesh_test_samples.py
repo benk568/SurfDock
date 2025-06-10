@@ -297,7 +297,7 @@ def compute_inp_surface(
 
         # Convert to ply and save.
         save_ply(
-            ply_out_path,
+            str(ply_out_path),
             regular_mesh.vertices, regular_mesh.faces,
             normals=vertex_normal,
             charges=vertex_charges,
