@@ -17,7 +17,6 @@ def computeAPBS(vertices, pdb_file, tmp_file_base,clear=False):
     """
         Calls APBS, pdb2pqr, and multivalue and returns the charges per vertex
     """
-    print("computeAPBS files", pdb_file, tmp_file_base, flush=True)
     if not clear:
         pdb2pqr = pdb2pqr_bin + " --ff=parse --whitespace --noopt --apbs-input %s %s"# + tempfile.mktemp()
         # pdb2pqr = pdb2pqr_bin + " --clean --whitespace --noopt --apbs-input %s %s"# + tempfile.mktemp() # 上一行由于确实太多办法计算表面的时候再用这个
