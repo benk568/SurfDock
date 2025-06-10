@@ -43,9 +43,9 @@ def asl_to_pocket_selection(asl: str) -> str:
         chain, res_nums, _, _ = match.groups()
         for res_num in res_nums.split(","):
             try:
-                pocket_selection[chain] += [res_num]
+                pocket_selection[chain] += [int(res_num)]
             except KeyError:
-                pocket_selection[chain] = [res_num]
+                pocket_selection[chain] = [int(res_num)]
 
     # Can only have one binding pocket
     if len(pocket_selection) > 1:
