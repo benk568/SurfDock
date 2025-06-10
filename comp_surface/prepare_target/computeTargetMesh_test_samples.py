@@ -377,7 +377,7 @@ if __name__ == "__main__":
     )
 
     # Delete all temp files generated in the process
-    for f in args.out_dir.glob("*_temp*"):
+    for f in args.out_dir.glob("*/*_temp*"):
         f.unlink()
-    for f in args.out_dir.glob("*msms*"):
+    for f in args.out_dir.glob("*/*msms*"):
         f.unlink()
