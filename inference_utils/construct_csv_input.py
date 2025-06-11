@@ -1,59 +1,71 @@
+from pathlib import Path
+
 import pandas as pd
-# from defaultdict import defaultdict
+from tqdm import tqdm
 from collections import defaultdict
 import os
 from argparse import ArgumentParser, Namespace, FileType
+
 parser = ArgumentParser()
-parser.add_argument('--data_dir', type=str, default='~/SurfDock/data/test_samples', help='')
-parser.add_argument('--surface_out_dir', type=str, default='~/SurfDock/data/test_samples_8A_surface', help='')
-parser.add_argument('--Screen_ligand_library_file', type=str, default=None, help='')
-parser.add_argument('--output_csv_file', type=str, default='~/SurfDock/data/test_samples_8A_surface', help='')
-parser.add_argument('--is_docking_result_dir', action='store_true', default=False, help='')
-parser.add_argument('--docking_result_dir', type=str, default='', help='')
-# dirname = os.path.splitext(pocket_path.split('/')[-1])[0] + '_'+ os.path.splitext(ligands_path.split('/')[-1])[0] 
-# write_dir =  os.path.join(args.out_dir,'SurfDock_docking_result',dirname)#f'{args.out_dir}/SurfDock_docking_result/{dirname}'
+parser.add_argument(
+    "--data_dir",
+    required=True,
+    type=Path,
+    help="Input directory with full structure PDB files.",
+)
+parser.add_argument(
+    "--surface_out_dir",
+    required=True,
+    type=Path,
+    help=(
+        "Output directory from compute mesh script, containing pocket structures and "
+        "meshes."
+    ),
+)
+parser.add_argument(
+    "--ligands_to_dock",
+    required=True,
+    type=Path,
+    help="Path to SDF file or directory of SDF files containing ligands to dock.",
+)
+parser.add_argument("--output_csv_file", required=True, type=Path, help="")
 args = parser.parse_args()
 
-os.makedirs(os.path.dirname(args.output_csv_file),exist_ok=True)
-from tqdm import tqdm
+# Make sure input paths exist
+if not args.data_dir.exists():
+    raise ValueError(f"{args.data_dir} doesn't exist")
+if not args.surface_out_dir.exists():
+    raise ValueError(f"{args.surface_out_dir} doesn't exist")
+if not args.ligands_to_dock.exists():
+    raise ValueError(f"{args.ligands_to_dock} doesn't exist")
 
-args_list=defaultdict(list)
-proteins = [i for i in os.listdir(args.surface_out_dir) if os.path.isdir(os.path.join(args.surface_out_dir, i)) ]
-for protein in tqdm(proteins ):
-        target_filename = os.path.join(args.data_dir,protein,f'{protein}_protein_processed_obabel_reduce_obabel.pdb')
-        if not os.path.exists(target_filename):
-            target_filename = os.path.join(args.data_dir,protein,f'{protein}_protein_processed.pdb')
-        if not os.path.exists(target_filename):
-            raise ValueError(f'{target_filename} not exists , Please check file name or path')
+# Make output directory for CSV file if it doesn't exist already
+args.output_csv_file.parent.mkdir(parents=True, exist_ok=True)
 
-        ref_ligand_filename = os.path.join(args.data_dir,protein,f'{protein}_ligand.sdf')
-        ligand_filename = os.path.join(args.data_dir,protein,f'{protein}_ligand.sdf')
-        if args.Screen_ligand_library_file is not None:
-            print(f'Using Screen ligands library file: {args.Screen_ligand_library_file}')
-            ligand_filename = args.Screen_ligand_library_file
-        
-        if os.path.exists(ref_ligand_filename):
+# Dict that creates an empty list for the key if it's not already in the dict
+args_list = defaultdict(list)
 
-            pocket = os.path.join(args.surface_out_dir, protein, f'{protein}_protein_processed_8A.pdb')
-            surface = os.path.join(args.surface_out_dir, protein, f'{protein}_protein_processed_8A.ply')
-            
-            if os.path.exists(pocket) and os.path.exists(surface):
+# Get all the protein names (directories in top-level dir)
+proteins = [prot.name for prot in args.surface_out_dir.iterdir() if prot.is_dir()]
+for protein in tqdm(proteins):
+    # Make sure expected input files exist
+    target_filename = args.data_dir / protein / f"{protein}.pdb"
+    if not target_filename.exists():
+        print(f"{target_filename} not found, skipping.", flush=True)
 
-                args_list['protein_path'].append(target_filename)
-                args_list['pocket_path'].append(pocket)
-                args_list['ref_ligand'].append(ref_ligand_filename)
-                
-                if args.is_docking_result_dir:
-                    dirname = os.path.splitext(pocket.split('/')[-1])[0] + '_'+ os.path.splitext(ligand_filename.split('/')[-1])[0] 
-                    # write_dir =  os.path.join(args.docking_result_dir,'SurfDock_docking_result',dirname)#f'{args.out_dir}/SurfDock_docking_result/{dirname}'
-                    args_list['ligand_path'].append(os.path.join(args.docking_result_dir,'SurfDock_docking_result',dirname))
-                else:
-                    args_list['ligand_path'].append(ligand_filename)
-                args_list['protein_surface'].append(surface)
-            else:
-                pass
-                print(pocket)
-        else:
-            
-            print(protein)
-pd.DataFrame(args_list).to_csv(args.output_csv_file,index=False)
+    pocket = args.surface_out_dir / protein / f"{protein}_8A.pdb"
+    if not pocket.exists():
+        print(f"{pocket} not found, skipping.", flush=True)
+
+    surface = args.surface_out_dir / protein / f"{protein}_8A.ply"
+    if not surface.exists():
+        print(f"{surface} not found, skipping.", flush=True)
+
+    # Add paths to dict
+    args_list["protein_path"].append(target_filename)
+    args_list["pocket_path"].append(pocket)
+    args_list["protein_surface"].append(surface)
+    args_list["ref_ligand"].append("")
+    args_list["ligand_path"].append(args.ligands_to_dock)
+
+pd.DataFrame(args_list).to_csv(args.output_csv_file, index=False)
