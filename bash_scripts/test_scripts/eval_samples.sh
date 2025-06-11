@@ -10,7 +10,7 @@ cat << 'EOF'
                                                                                                        
   ____  _     _ _   _ _   _ ____  _     _____ ____  _   _ ____  _     _     ____  _     ____  _        _ 
 EOF
-                                                                                                       
+
 # This script is used to run SurfDock on test samples
 source ~/miniforge3/bin/activate SurfDock
 path=$(readlink -f "$0")
@@ -100,7 +100,7 @@ command=`python ${SurfDockdir}/datasets/get_pocket_embedding.py \
 --pocket_emb_save_dir ${pocket_emb_save_dir}`
 state=$command
 
-# save pocket esm embedding to single file 
+# save pocket esm embedding to single file
 command=`python ${SurfDockdir}/datasets/esm_pocket_embeddings_to_pt.py \
 --esm_embeddings_path ${pocket_emb_save_dir} \
 --output_path ${pocket_emb_save_to_single_file}`
@@ -120,34 +120,33 @@ test_data_csv=${out_csv_file}
 mdn_dist_threshold_test=3.0
 version=6
 dist_arrays=(3)
-for i in ${dist_arrays[@]}
-do
-mdn_dist_threshold_test=${i}
-command=`accelerate launch \
---multi_gpu \
---main_process_port ${main_process_port} \
---num_processes ${NUM_GPUS} \
-${SurfDockdir}/inference_accelerate.py \
---data_csv ${test_data_csv} \
---model_dir ${diffusion_model_dir} \
---ckpt best_ema_inference_epoch_model.pt \
---confidence_model_dir ${confidence_model_base_dir} \
---confidence_ckpt best_model.pt \
---save_docking_result \
---mdn_dist_threshold_test ${mdn_dist_threshold_test} \
---esm_embeddings_path ${protein_embedding} \
---run_name ${confidence_model_base_dir}_test_dist_${mdn_dist_threshold_test} \
---project ${project_name} \
---out_dir ${temp}/docking_result/${project_name} \
---batch_size 40 \
---batch_size_molecule 1 \
---samples_per_complex 40 \
---save_docking_result_number 40 \
---head_index  0 \
---tail_index 10000 \
---inference_mode evaluate \
---wandb_dir ${temp}/docking_result/test_workdir`
-state=$command
+for i in ${dist_arrays[@]}; do
+    mdn_dist_threshold_test=${i}
+    command=`accelerate launch \
+    --multi_gpu \
+    --main_process_port ${main_process_port} \
+    --num_processes ${NUM_GPUS} \
+    ${SurfDockdir}/inference_accelerate.py \
+    --data_csv ${test_data_csv} \
+    --model_dir ${diffusion_model_dir} \
+    --ckpt best_ema_inference_epoch_model.pt \
+    --confidence_model_dir ${confidence_model_base_dir} \
+    --confidence_ckpt best_model.pt \
+    --save_docking_result \
+    --mdn_dist_threshold_test ${mdn_dist_threshold_test} \
+    --esm_embeddings_path ${protein_embedding} \
+    --run_name ${confidence_model_base_dir}_test_dist_${mdn_dist_threshold_test} \
+    --project ${project_name} \
+    --out_dir ${temp}/docking_result/${project_name} \
+    --batch_size 40 \
+    --batch_size_molecule 1 \
+    --samples_per_complex 40 \
+    --save_docking_result_number 40 \
+    --head_index  0 \
+    --tail_index 10000 \
+    --inference_mode evaluate \
+    --wandb_dir ${temp}/docking_result/test_workdir`
+    state=$command
 done
 cat << 'EOF'
   ____  _     _ _   _ _   _ ____  _     _____ ____  _   _ ____  _     _     ____  _     ____  _        _
