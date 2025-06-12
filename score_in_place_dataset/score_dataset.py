@@ -31,6 +31,7 @@ class ScreenDataset(Dataset):
         pocket_path,
         ligands_path,
         ref_ligand,
+        pocket_asl=None,
         surface_path=None,
         pocket_center=None,
         transform=None,
@@ -64,6 +65,7 @@ class ScreenDataset(Dataset):
         # use False for docking & True for rescoring
         self.keep_input_pose = keep_input_pose
         self.ref_ligand = ref_ligand
+        self.pocket_asl = pocket_asl
         self.pocket_path = pocket_path
         self.ligands_path = ligands_path
         self.surface_path = surface_path
@@ -274,6 +276,7 @@ class ScreenDataset(Dataset):
                     self.ref_ligand,
                     save_file=pure_pocket_path,
                     lm_embedding_chains=lm_embedding_chains,
+                    pocket_asl=self.pocket_asl,
                 )
             )
             if (
