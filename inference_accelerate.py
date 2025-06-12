@@ -46,6 +46,12 @@ parser.add_argument(
     help="Path to folder with dataset for score in place",
 )
 parser.add_argument(
+        "--pocket_asl",
+        type=str,
+        default="",
+        help="ASL string specifying the pocket if there's no ligand to define it.",
+    )
+parser.add_argument(
     "--model_dir",
     type=str,
     default=None,
@@ -473,6 +479,7 @@ def main_function():
                 pocket_path,
                 ligands_path,
                 ref_ligand,
+                args.pocket_asl,
                 surface_path,
                 pocket_center,
                 transform=None,
