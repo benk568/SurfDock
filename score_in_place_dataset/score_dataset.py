@@ -169,7 +169,9 @@ class ScreenDataset(Dataset):
         return complex_graph
 
     def preprocessing(self):
-        self.ref_ligand, _ = read_mol(self.ref_ligand, remove_hs=False)
+        # If None was passed for ref_ligand just let it be None
+        if self.ref_ligand is not None:
+            self.ref_ligand, _ = read_mol(self.ref_ligand, remove_hs=False)
         self.protein_name = self.pocket_path.split("/")[-1].split("_")[0]
         self.protein_graph, self.ligs = self.get_complex(
             self.protein_name, self.esm_embeddings
