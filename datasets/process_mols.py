@@ -1,5 +1,6 @@
 import copy
 import os
+import re
 import warnings
 
 import numpy as np
@@ -510,12 +511,15 @@ def parse_pdb_from_path(path):
 from Bio.PDB import PDBIO
 
 
-def extract_receptor_structure(rec, lig, save_file, lm_embedding_chains=None):
+def extract_receptor_structure(
+    rec, lig, save_file, lm_embedding_chains=None, pocket_asl=None
+):
     if os.path.exists(save_file):
         return None, None, None, None, None, lm_embedding_chains
-    conf = lig.GetConformer()
-    lig_coords = conf.GetPositions()
-    min_distances = []
+    if lig is not None:
+        conf = lig.GetConformer()
+        lig_coords = conf.GetPositions()
+        min_distances = []
     coords = []
     c_alpha_coords = []
     n_coords = []
@@ -557,18 +561,20 @@ def extract_receptor_structure(rec, lig, save_file, lm_embedding_chains=None):
                 invalid_res_ids.append(residue.get_id())
         for res_id in invalid_res_ids:
             chain.detach_child(res_id)
-        # Calculate and store smallest distance b/n all ref ligand atoms and all chain
-        #  atoms
-        if len(chain_coords) > 0:
-            all_chain_coords = np.concatenate(chain_coords, axis=0)
-            distances = spatial.distance.cdist(lig_coords, all_chain_coords)
-            min_distance = distances.min()
-        else:
-            # No valid AA residues on this chain so want this chain to come up last in
-            #  sorting
-            min_distance = np.inf
 
-        min_distances.append(min_distance)
+        if lig is not None:
+            # Calculate and store smallest distance b/n all ref ligand atoms and all
+            #  chain atoms
+            if len(chain_coords) > 0:
+                all_chain_coords = np.concatenate(chain_coords, axis=0)
+                distances = spatial.distance.cdist(lig_coords, all_chain_coords)
+                min_distance = distances.min()
+            else:
+                # No valid AA residues on this chain so want this chain to come up last
+                #  in sorting
+                min_distance = np.inf
+            min_distances.append(min_distance)
+
         lengths.append(count)
         coords.append(chain_coords)
         c_alpha_coords.append(np.array(chain_c_alpha_coords))
@@ -577,11 +583,22 @@ def extract_receptor_structure(rec, lig, save_file, lm_embedding_chains=None):
         if not count == 0:
             valid_chain_ids.append(chain.get_id())
 
-    min_distances = np.array(min_distances)
     # If no valid chains were found, assume valid chain is the one with the lowest
     #  min_distance (smallest dist b/n all ref lig atoms and all chain atoms)
     if len(valid_chain_ids) == 0:
-        valid_chain_ids.append(np.argmin(min_distances))
+        if lig is None:
+            if pocket_asl is not None:
+                asl_re = r"chain\.name (\w)"
+                valid_chain_ids = [
+                    match.groups()[0] for match in re.finditer(asl_re, pocket_asl)
+                ]
+            else:
+                raise ValueError("No valid chains to dock to.")
+        else:
+            # Actually I'm not sure that this even works anyway, need chain IDs not just
+            #  the number
+            min_distances = np.array(min_distances)
+            valid_chain_ids.append(np.argmin(min_distances))
     valid_coords = []
     valid_c_alpha_coords = []
     valid_n_coords = []
