@@ -440,6 +440,9 @@ def main_function():
         total=len(pocket_paths),
     )
     start_time = time.time()
+    ####################################################################################
+    ## Loop through each receptor to dock to
+    ####################################################################################
     for (
         pocket_path,
         ligands_path,
@@ -523,6 +526,9 @@ def main_function():
             """
             Start sampling conformers by SurfDock
             """
+            ############################################################################
+            ## Loop through (batches?) of (conformations?) of input molecules
+            ############################################################################
             for idx, orig_complex_graph in tqdm(
                 enumerate(test_loader),
                 total=len(test_loader),
