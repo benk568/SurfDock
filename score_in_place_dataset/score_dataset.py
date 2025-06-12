@@ -266,12 +266,6 @@ class ScreenDataset(Dataset):
         complex_graph["name"] = name
         logger.info(f"Processing {name}")
         try:
-            if self.ref_ligand is None:
-
-                logger.warning(
-                    "No reference ligand was provided. Using the first ligand in the list as reference."
-                )
-                self.ref_ligand = ligs[0]
             rec, rec_coords, c_alpha_coords, n_coords, c_coords, lm_embeddings = (
                 extract_receptor_structure(
                     copy.deepcopy(rec_model),
