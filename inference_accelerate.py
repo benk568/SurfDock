@@ -459,6 +459,11 @@ def main_function():
     ) in pbar:
         in_loop_start_time = time.time()
 
+        # If there is no ref_ligand file it'll likely be an empty string, map to None
+        #  so downstream functionality works correctly
+        if ref_ligand == "":
+            ref_ligand = None
+
         try:
 
             dirname = (
