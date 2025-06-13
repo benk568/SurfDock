@@ -46,6 +46,12 @@ parser.add_argument(
     help="Path to folder with dataset for score in place",
 )
 parser.add_argument(
+    "--pocket_asl",
+    type=str,
+    default="",
+    help="ASL string specifying the pocket if there's no ligand to define it.",
+)
+parser.add_argument(
     "--model_dir",
     type=str,
     default=None,
@@ -440,6 +446,9 @@ def main_function():
         total=len(pocket_paths),
     )
     start_time = time.time()
+    ####################################################################################
+    ## Loop through each receptor to dock to
+    ####################################################################################
     for (
         pocket_path,
         ligands_path,
@@ -449,6 +458,11 @@ def main_function():
         pocket_center,
     ) in pbar:
         in_loop_start_time = time.time()
+
+        # If there is no ref_ligand file it'll likely be an empty string, map to None
+        #  so downstream functionality works correctly
+        if ref_ligand == "":
+            ref_ligand = None
 
         try:
 
@@ -470,6 +484,7 @@ def main_function():
                 pocket_path,
                 ligands_path,
                 ref_ligand,
+                args.pocket_asl,
                 surface_path,
                 pocket_center,
                 transform=None,
@@ -523,6 +538,9 @@ def main_function():
             """
             Start sampling conformers by SurfDock
             """
+            ############################################################################
+            ## Loop through (batches?) of (conformations?) of input molecules
+            ############################################################################
             for idx, orig_complex_graph in tqdm(
                 enumerate(test_loader),
                 total=len(test_loader),
@@ -673,7 +691,9 @@ def main_function():
                                     head_threshold:tail_threshold
                                 ]
                                 re_order = np.argsort(confidence_tmp)[::-1]
-                                if args.inference_mode == "evaluate":
+                                if (args.inference_mode == "evaluate") and (
+                                    ref_ligand is not None
+                                ):
                                     true_mol = remove_all_hs(
                                         read_abs_file_mol(ref_ligand)
                                     )
@@ -698,7 +718,9 @@ def main_function():
                                         if score_model_args.remove_hs:
                                             mol_pred = remove_all_hs(mol_pred)
 
-                                        if args.inference_mode == "evaluate":
+                                        if (args.inference_mode == "evaluate") and (
+                                            ref_ligand is not None
+                                        ):
                                             try:
                                                 rmsd = get_symmetry_rmsd(
                                                     true_mol,
@@ -739,7 +761,9 @@ def main_function():
                                         if args.save_visualisation:
                                             write_dir_vis = f'{args.out_dir}/SurfDock_docking_result/{data_list[true_idx]["name"]}'
                                             os.makedirs(write_dir, exist_ok=True)
-                                            if args.inference_mode == "evaluate":
+                                            if (args.inference_mode == "evaluate") and (
+                                                ref_ligand is not None
+                                            ):
                                                 vis_filename = f'{data_list[true_idx]["name"]}_sample_idx_{batch_idx}_rank_{rank + 1}_rmsd_{rmsd}_confidence_{confidence_tmp[batch_idx]}.pdb'
                                             else:
                                                 vis_filename = f'{data_list[true_idx]["name"]}_sample_idx_{batch_idx}_rank_{rank + 1}_confidence_{confidence_tmp[batch_idx]}.pdb'
